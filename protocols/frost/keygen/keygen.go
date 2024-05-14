@@ -49,9 +49,8 @@ func StartKeygenCommon(taproot bool, group curve.Curve, participants []party.ID,
 			verificationSharesCopy[k] = v
 		}
 
-		refresh := true
-		if privateShare == nil || publicKey == nil {
-			refresh = false
+		refresh := privateShare == nil || publicKey == nil
+		if refresh {
 			privateShare = group.NewScalar()
 			publicKey = group.NewPoint()
 			for _, k := range participants {
