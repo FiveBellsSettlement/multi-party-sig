@@ -95,9 +95,19 @@ func (m *Message) MarshalBinary() ([]byte, error) {
 }
 
 func (m *Message) UnmarshalBinary(data []byte) error {
+	// We want to confirm to the interface, so we require an error in the signature
+	// even though we don't produce one.
+	m.unmarshalBinary(data)
+	return nil
+}
+
+// unmarshalBinary is a helper function to unmarshal a message from a byte slice.
+// We use this to clarify, in the code, that unmarshaling never returns an error,
+// instead potentially just returning an invalid or incomplete message.
+func (m *Message) unmarshalBinary(data []byte) {
 	deserialized := m.toMarshallable()
 	if err := cbor.Unmarshal(data, deserialized); err != nil {
-		return nil
+		return
 	}
 	m.SSID = deserialized.SSID
 	m.From = deserialized.From
@@ -107,5 +117,4 @@ func (m *Message) UnmarshalBinary(data []byte) error {
 	m.Data = deserialized.Data
 	m.Broadcast = deserialized.Broadcast
 	m.BroadcastVerification = deserialized.BroadcastVerification
-	return nil
 }
