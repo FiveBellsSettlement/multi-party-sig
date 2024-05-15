@@ -30,7 +30,7 @@ func Rounds(rounds []round.Session, rule Rule) (error, bool) {
 		out       = make(chan *round.Message, N*(N+1))
 	)
 
-	if roundType, err = checkAllRoundsSame(rounds); err != nil {
+	if _, err = checkAllRoundsSame(rounds); err != nil {
 		return err, false
 	}
 	// get the second set of messages
