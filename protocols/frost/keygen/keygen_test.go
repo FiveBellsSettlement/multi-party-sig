@@ -143,15 +143,49 @@ func checkOutputTaproot(t *testing.T, rounds []round.Session, parties party.IDSl
 
 func TestKeygenTaproot(t *testing.T) {
 	N := 5
+	rounds, partyIDs := taprootDkg(t, N)
+	checkOutputTaproot(t, rounds, partyIDs)
+}
+
+func TestRefreshTaproot(t *testing.T) {
+	N := 5
+	rounds, partyIDs := taprootDkg(t, N)
+
+	refreshRounds := make([]round.Session, 0, N)
+	for _, partyID := range partyIDs {
+		currentRound := rounds[len(refreshRounds)]
+		config := currentRound.(*round.Output).Result.(*TaprootConfig)
+		publicKey, err := curve.Secp256k1{}.LiftX(config.PublicKey)
+		require.NoError(t, err)
+		privateShare := config.PrivateShare
+		verificationShares := make(map[party.ID]curve.Point, len(config.VerificationShares))
+		for k, v := range config.VerificationShares {
+			verificationShares[k] = v
+		}
+
+		r, err := StartKeygenCommon(true, curve.Secp256k1{}, partyIDs, N-1, partyID, privateShare, publicKey, verificationShares)(nil)
+		require.NoError(t, err, "round creation should not result in an error")
+		refreshRounds = append(refreshRounds, r)
+	}
+
+	for {
+		err, done := test.Rounds(refreshRounds, nil)
+		require.NoError(t, err, "failed to process round")
+		if done {
+			break
+		}
+	}
+	checkOutputTaproot(t, refreshRounds, partyIDs)
+}
+
+func taprootDkg(t *testing.T, N int) ([]round.Session, party.IDSlice) {
 	partyIDs := test.PartyIDs(N)
-	group := curve.Secp256k1{}
 
 	rounds := make([]round.Session, 0, N)
 	for _, partyID := range partyIDs {
-		r, err := StartKeygenCommon(true, group, partyIDs, N-1, partyID, nil, nil, nil)(nil)
+		r, err := StartKeygenCommon(true, curve.Secp256k1{}, partyIDs, N-1, partyID, nil, nil, nil)(nil)
 		require.NoError(t, err, "round creation should not result in an error")
 		rounds = append(rounds, r)
-
 	}
 
 	for {
@@ -162,5 +196,5 @@ func TestKeygenTaproot(t *testing.T) {
 		}
 	}
 
-	checkOutputTaproot(t, rounds, partyIDs)
+	return rounds, partyIDs
 }
