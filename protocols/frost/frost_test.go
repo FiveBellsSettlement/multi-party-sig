@@ -96,6 +96,29 @@ func do(t *testing.T, id party.ID, ids []party.ID, threshold int, message []byte
 	assert.True(t, cTaproot.PublicKey.Verify(finalSignature, message))
 }
 
+func doDkgOnly(t *testing.T, id party.ID, ids []party.ID, threshold int, n *test.Network) Config {
+	h, err := protocol.NewMultiHandler(Keygen(curve.Secp256k1{}, id, ids, threshold), nil)
+	require.NoError(t, err)
+	test.HandlerLoop(id, h, n)
+	r, err := h.Result()
+	require.NoError(t, err)
+	require.IsType(t, &Config{}, r)
+	return *r.(*Config)
+}
+
+func doSigningOnly(t *testing.T, c Config, ids []party.ID, message []byte, n *test.Network, wg *sync.WaitGroup) {
+	defer wg.Done()
+	h, err := protocol.NewMultiHandler(Sign(&c, ids, message), nil)
+	require.NoError(t, err)
+	test.HandlerLoop(c.ID, h, n)
+
+	signResult, err := h.Result()
+	require.NoError(t, err)
+	require.IsType(t, Signature{}, signResult)
+	signature := signResult.(Signature)
+	assert.True(t, signature.Verify(c.PublicKey, message))
+}
+
 func TestFrost(t *testing.T) {
 	N := 5
 	T := N - 1
@@ -117,26 +140,40 @@ func TestFrost(t *testing.T) {
 	wg.Wait()
 }
 
-func TestFrostRealistic(t *testing.T) {
+func TestFrostRealisticSign(t *testing.T) {
 	// this should be a 3 of 5 scheme (max two parties corrupted during keygen)
 	N := 5
 	T := 2
 	message := []byte("hello")
 
-	group := curve.Secp256k1{}
-	adaptorSecret := sample.Scalar(rand.Reader, group).(*curve.Secp256k1Scalar)
-
 	partyIDs := test.PartyIDs(N)
-	fmt.Println(partyIDs)
 
-	n := test.NewNetwork(partyIDs)
+	dkgNetwork := test.NewNetwork(partyIDs)
 
+	t.Logf("REALISTIC SIGN TEST: DKG")
+	fmt.Printf("DKG parties: %s", partyIDs)
+	configs := make(map[party.ID]Config)
 	var wg sync.WaitGroup
 	wg.Add(N)
 	for _, id := range partyIDs {
-		go do(t, id, partyIDs, T, message, *adaptorSecret, n, &wg)
+		go func() {
+			configs[id] = doDkgOnly(t, id, partyIDs, T, dkgNetwork)
+			wg.Done()
+		}()
 	}
 	wg.Wait()
+
+	signingIDs := test.PartyIDs(3) // three signers. Should meet quorum.
+	signNetwork := test.NewNetwork(signingIDs)
+	t.Logf("REALISTIC SIGN TEST: Signing")
+	fmt.Printf("signing parties: %s", signingIDs)
+	var signWg sync.WaitGroup
+	signWg.Add(len(signingIDs))
+	for _, id := range signingIDs {
+		c := configs[id]
+		go doSigningOnly(t, c, signingIDs, message, signNetwork, &signWg)
+	}
+	signWg.Wait()
 }
 
 func configStr(c *Config) string {
