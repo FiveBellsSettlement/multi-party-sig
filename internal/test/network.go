@@ -38,6 +38,7 @@ func (n *Network) init() {
 }
 
 func (n *Network) Next(id party.ID) <-chan *protocol.Message {
+	//fmt.Printf("party %s: network Next()\n", id)
 	n.mtx.Lock()
 	defer n.mtx.Unlock()
 	if len(n.listenChannels) == 0 {
@@ -51,6 +52,7 @@ func (n *Network) Next(id party.ID) <-chan *protocol.Message {
 }
 
 func (n *Network) Send(msg *protocol.Message) {
+	//fmt.Printf("network send %s\n", msg)
 	n.mtx.Lock()
 	defer n.mtx.Unlock()
 	for id, c := range n.listenChannels {
