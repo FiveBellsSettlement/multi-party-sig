@@ -27,6 +27,8 @@ func do(t *testing.T, id party.ID, ids []party.ID, threshold int, message []byte
 	require.IsType(t, &Config{}, r)
 	c0 := r.(*Config)
 
+	t.Logf("config after DKG - Party %s: %s", id, configStr(c0))
+
 	h, err = protocol.NewMultiHandler(Refresh(c0, ids), nil)
 	require.NoError(t, err)
 	test.HandlerLoop(id, h, n)
@@ -35,6 +37,7 @@ func do(t *testing.T, id party.ID, ids []party.ID, threshold int, message []byte
 	require.IsType(t, &Config{}, r)
 	c := r.(*Config)
 	require.True(t, c0.PublicKey.Equal(c.PublicKey))
+	t.Logf("config after refresh - Party %s: %s", id, configStr(c0))
 
 	h, err = protocol.NewMultiHandler(KeygenTaproot(id, ids, threshold), nil)
 	require.NoError(t, err)
@@ -112,4 +115,43 @@ func TestFrost(t *testing.T) {
 		go do(t, id, partyIDs, T, message, *adaptorSecret, n, &wg)
 	}
 	wg.Wait()
+}
+
+func TestFrostRealistic(t *testing.T) {
+	// this should be a 3 of 5 scheme (max two parties corrupted during keygen)
+	N := 5
+	T := 2
+	message := []byte("hello")
+
+	group := curve.Secp256k1{}
+	adaptorSecret := sample.Scalar(rand.Reader, group).(*curve.Secp256k1Scalar)
+
+	partyIDs := test.PartyIDs(N)
+	fmt.Println(partyIDs)
+
+	n := test.NewNetwork(partyIDs)
+
+	var wg sync.WaitGroup
+	wg.Add(N)
+	for _, id := range partyIDs {
+		go do(t, id, partyIDs, T, message, *adaptorSecret, n, &wg)
+	}
+	wg.Wait()
+}
+
+func configStr(c *Config) string {
+	pubkeyBinary, err := c.PublicKey.MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+	privateShareBinary, err := c.PrivateShare.MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+	return fmt.Sprintf(`ID: %s
+PublicKey: %x
+ChainKey: %x
+PrivateShare %x
+VerificationShares %v
+`, c.ID, pubkeyBinary, c.ChainKey, privateShareBinary, c.VerificationShares)
 }
