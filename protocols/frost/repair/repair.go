@@ -31,18 +31,18 @@ func Repair(helpers []party.ID, lostID, selfID party.ID, privateShare curve.Scal
 			return nil, fmt.Errorf("repair.Repair: helpers must be non-empty")
 		}
 		if lostID == selfID {
-			if privateShare != nil {
+			if privateShare != nil && !privateShare.IsZero() {
 				return nil, fmt.Errorf(
-					"repair.Repair: private share should be nil for lost share")
+					"repair.Repair: private share should be nil or zero for lost share")
 			}
 			if slices.ContainsFunc(helpers, func(id party.ID) bool { return id == lostID }) {
 				return nil, fmt.Errorf(
 					"repair.Repair: lost share ID (%v) should not be in helpers (%v)", lostID, helpers)
 			}
 		} else {
-			if privateShare == nil {
+			if privateShare == nil || privateShare.IsZero() {
 				return nil, fmt.Errorf(
-					"repair.Repair: private share should not be nil for helper share")
+					"repair.Repair: private share should not be nil or zero for helper share")
 			}
 			if !slices.ContainsFunc(helpers, func(id party.ID) bool { return id == selfID }) {
 				return nil, fmt.Errorf(

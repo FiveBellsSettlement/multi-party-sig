@@ -341,7 +341,9 @@ func TestFrostRepair(t *testing.T) {
 	var repairedShare curve.Scalar
 	for _, id := range participants {
 		var privateShare curve.Scalar
-		if id != lostID {
+		if id == lostID {
+			privateShare = &curve.Secp256k1Scalar{}
+		} else {
 			c := configs[id]
 			privateShare = c.PrivateShare
 		}

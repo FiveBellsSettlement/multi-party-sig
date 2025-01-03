@@ -26,7 +26,7 @@ func (r *round3) VerifyMessage(msg round.Message) error {
 }
 
 func (r *round3) StoreMessage(msg round.Message) error {
-	if r.privateShare != nil {
+	if r.privateShare != nil && !r.privateShare.IsZero() {
 		// only the lost share does anything in round 3
 		return nil
 	}
@@ -47,7 +47,7 @@ func (*round3) Number() round.Number { return 3 }
 // Round 3 only involves the lost share:
 // It sums contributed sigmas to create a new secret share.
 func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
-	if r.privateShare != nil {
+	if r.privateShare != nil && !r.privateShare.IsZero() {
 		// only the lost share needs to compute the secret
 		// we return zero scalar for consistency
 		return r.ResultRound(r.Group().NewScalar()), nil

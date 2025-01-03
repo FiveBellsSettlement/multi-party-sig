@@ -18,7 +18,7 @@ type round1 struct {
 	// lostID is the ID of the lost share.
 	lostID party.ID
 	// privateShare is the secret share of a helper
-	// This should be nil for the lost share.
+	// This should be nil or zero for the lost share.
 	privateShare curve.Scalar
 }
 
@@ -42,7 +42,7 @@ func (round1) Number() round.Number { return 1 }
 // Round 1 generates delta values from each helper to help the lost share reconstruct its secret.
 func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	dummyMsg := &message2{r.Group().NewScalar()}
-	if r.privateShare == nil {
+	if r.privateShare == nil || r.privateShare.IsZero() {
 		// The lost share does nothing until round 3.
 		// Library internals, however, require that each share send a message to the other shares
 		// before proceeding to round finalization, so we send a dummy message here.

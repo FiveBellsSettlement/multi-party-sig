@@ -26,7 +26,7 @@ func (r *round2) VerifyMessage(msg round.Message) error {
 }
 
 func (r *round2) StoreMessage(msg round.Message) error {
-	if r.privateShare == nil {
+	if r.privateShare == nil || r.privateShare.IsZero() {
 		// lost share does nothing until round 3
 		return nil
 	}
@@ -53,7 +53,7 @@ func (*round2) Number() round.Number { return 2 }
 // `sigma` is the sum of all deltas.
 func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	dummyMsg := &message3{r.Group().NewScalar()}
-	if r.privateShare == nil {
+	if r.privateShare == nil || r.privateShare.IsZero() {
 		// The lost share does nothing until round 3.
 		// Library internals, however, require that each share send a message to the other shares
 		// before proceeding to round finalization, so we send a dummy message here.
